@@ -1,11 +1,13 @@
 // For more information, see https://crawlee.dev/
 import { Configuration, PlaywrightCrawler, downloadListOfUrls } from "crawlee";
-import { readFile, writeFile } from "fs/promises";
+import { readFile, writeFile, mkdir } from "fs/promises";
 import { glob } from "glob";
 import { Config, configSchema } from "./config.js";
 import { Page } from "playwright";
 import { isWithinTokenLimit } from "gpt-tokenizer";
 import { PathLike } from "fs";
+import path from 'path';
+import { createHash } from 'crypto';
 
 let pageCounter = 0;
 let crawler: PlaywrightCrawler;
@@ -81,8 +83,20 @@ export async function crawl(config: Config) {
 
           const html = await getPageHtml(page, config.selector);
 
-          // Save results as JSON to ./storage/datasets/default
-          await pushData({ title, url: request.loadedUrl, html });
+          // Custom file naming strategy
+          const url = new URL(request.url);
+          let fileName = url.pathname.replace(/^\//, '').replace(/\/$/, '');
+          if (fileName === '') {
+            fileName = 'index';
+          }
+          fileName = `${fileName}.md`;
+
+          // Use the custom file name
+          await pushData({
+            url: request.url,
+            html: html,
+            fileName: fileName,
+          });
 
           if (config.onVisitPage) {
             await config.onVisitPage({ page, pushData });
@@ -155,86 +169,39 @@ export async function crawl(config: Config) {
   }
 }
 
+// @ts-expect-error Unused parameter kept for API consistency
 export async function write(config: Config) {
-  let nextFileNameString: PathLike = "";
   const jsonFiles = await glob("storage/datasets/default/*.json", {
     absolute: true,
   });
 
-  console.log(`Found ${jsonFiles.length} files to combine...`);
+  console.log(`Found ${jsonFiles.length} files to process...`);
 
-  let currentResults: Record<string, any>[] = [];
-  let currentSize: number = 0;
-  let fileCounter: number = 1;
-  const maxBytes: number = config.maxFileSize
-    ? config.maxFileSize * 1024 * 1024
-    : Infinity;
+  // Set the output directory to 'docs'
+  const outputDir = path.join(process.cwd(), 'docs');
 
-  const getStringByteSize = (str: string): number =>
-    Buffer.byteLength(str, "utf-8");
-
-  const nextFileName = (): string =>
-    `${config.outputFileName.replace(/\.json$/, "")}-${fileCounter}.json`;
-
-  const writeBatchToFile = async (): Promise<void> => {
-    nextFileNameString = nextFileName();
-    await writeFile(
-      nextFileNameString,
-      JSON.stringify(currentResults, null, 2),
-    );
-    console.log(
-      `Wrote ${currentResults.length} items to ${nextFileNameString}`,
-    );
-    currentResults = [];
-    currentSize = 0;
-    fileCounter++;
-  };
-
-  let estimatedTokens: number = 0;
-
-  const addContentOrSplit = async (
-    data: Record<string, any>,
-  ): Promise<void> => {
-    const contentString: string = JSON.stringify(data);
-    const tokenCount: number | false = isWithinTokenLimit(
-      contentString,
-      config.maxTokens || Infinity,
-    );
-
-    if (typeof tokenCount === "number") {
-      if (estimatedTokens + tokenCount > config.maxTokens!) {
-        // Only write the batch if it's not empty (something to write)
-        if (currentResults.length > 0) {
-          await writeBatchToFile();
-        }
-        // Since the addition of a single item exceeded the token limit, halve it.
-        estimatedTokens = Math.floor(tokenCount / 2);
-        currentResults.push(data);
-      } else {
-        currentResults.push(data);
-        estimatedTokens += tokenCount;
-      }
-    }
-
-    currentSize += getStringByteSize(contentString);
-    if (currentSize > maxBytes) {
-      await writeBatchToFile();
-    }
-  };
-
-  // Iterate over each JSON file and process its contents.
-  for (const file of jsonFiles) {
+  const processFile = async (file: string): Promise<void> => {
     const fileContent = await readFile(file, "utf-8");
     const data: Record<string, any> = JSON.parse(fileContent);
-    await addContentOrSplit(data);
+    
+    // Use the fileName from the crawled data, or generate a safe one if not available
+    const outputFileName = data.fileName || new URL(data.url).pathname.replace(/^\//, '').replace(/\/$/, '') || 'index';
+    const outputFilePath = path.join(outputDir, outputFileName);
+    
+    // Ensure the directory exists
+    await mkdir(path.dirname(outputFilePath), { recursive: true });
+    
+    // Write only the HTML content
+    await writeFile(outputFilePath, data.html);
+    console.log(`Wrote HTML content for ${data.url} to ${outputFilePath}`);
+  };
+
+  // Process each file individually
+  for (const file of jsonFiles) {
+    await processFile(file);
   }
 
-  // Check if any remaining data needs to be written to a file.
-  if (currentResults.length > 0) {
-    await writeBatchToFile();
-  }
-
-  return nextFileNameString;
+  return outputDir;
 }
 
 class GPTCrawlerCore {

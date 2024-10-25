@@ -85,6 +85,23 @@ export const configSchema = z.object({
    * @example 5000
    */
   maxTokens: z.number().int().positive().optional(),
+  outputDirectory: z.string().optional(),
 });
 
-export type Config = z.infer<typeof configSchema>;
+export interface Config {
+  url: string;
+  match: string | string[];
+  maxPagesToCrawl: number;
+  outputFileName: string;
+  exclude?: string | string[];
+  selector?: string;
+  waitForSelectorTimeout?: number;
+  resourceExclusions?: string[];
+  cookie?: { name: string; value: string } | { name: string; value: string }[];
+  onVisitPage?: (args: { 
+    page: Page; 
+    pushData: (data: any, ...args: unknown[]) => Promise<void>; 
+  }) => Promise<void>;
+  maxTokens?: number;
+  outputDirectory?: string;
+}
