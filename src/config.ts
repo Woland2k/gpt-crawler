@@ -98,9 +98,9 @@ export interface Config {
   waitForSelectorTimeout?: number;
   resourceExclusions?: string[];
   cookie?: { name: string; value: string } | { name: string; value: string }[];
-  onVisitPage?: (args: { 
-    page: Page; 
-    pushData: (data: any, ...args: unknown[]) => Promise<void>; 
+  onVisitPage?: (args: {
+    page: Page;
+    pushData: (data: any, ...args: unknown[]) => Promise<void>;
   }) => Promise<void>;
   maxTokens?: number;
   outputDirectory?: string;

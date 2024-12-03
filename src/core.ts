@@ -6,8 +6,8 @@ import { Config, configSchema } from "./config.js";
 import { Page } from "playwright";
 import { isWithinTokenLimit } from "gpt-tokenizer";
 import { PathLike } from "fs";
-import path from 'path';
-import { createHash } from 'crypto';
+import path from "path";
+import { createHash } from "crypto";
 
 let pageCounter = 0;
 let crawler: PlaywrightCrawler;
@@ -85,9 +85,9 @@ export async function crawl(config: Config) {
 
           // Custom file naming strategy
           const url = new URL(request.url);
-          let fileName = url.pathname.replace(/^\//, '').replace(/\/$/, '');
-          if (fileName === '') {
-            fileName = 'index';
+          let fileName = url.pathname.replace(/^\//, "").replace(/\/$/, "");
+          if (fileName === "") {
+            fileName = "index";
           }
           fileName = `${fileName}.md`;
 
@@ -178,19 +178,22 @@ export async function write(config: Config) {
   console.log(`Found ${jsonFiles.length} files to process...`);
 
   // Set the output directory to 'docs'
-  const outputDir = path.join(process.cwd(), 'docs');
+  const outputDir = path.join(process.cwd(), "docs");
 
   const processFile = async (file: string): Promise<void> => {
     const fileContent = await readFile(file, "utf-8");
     const data: Record<string, any> = JSON.parse(fileContent);
-    
+
     // Use the fileName from the crawled data, or generate a safe one if not available
-    const outputFileName = data.fileName || new URL(data.url).pathname.replace(/^\//, '').replace(/\/$/, '') || 'index';
+    const outputFileName =
+      data.fileName ||
+      new URL(data.url).pathname.replace(/^\//, "").replace(/\/$/, "") ||
+      "index";
     const outputFilePath = path.join(outputDir, outputFileName);
-    
+
     // Ensure the directory exists
     await mkdir(path.dirname(outputFilePath), { recursive: true });
-    
+
     // Write only the HTML content
     await writeFile(outputFilePath, data.html);
     console.log(`Wrote HTML content for ${data.url} to ${outputFilePath}`);
