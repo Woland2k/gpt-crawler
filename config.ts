@@ -7,6 +7,11 @@ export const defaultConfig: Config = {
     "https://virtocommerce.com/solutions/*",
     "https://virtocommerce.com/industry/*",
     "https://virtocommerce.com/case-studies/*",
+    "https://virtocommerce.com/commerce-engine/*",
+    "https://virtocommerce.com/marketplace/*",
+    "https://virtocommerce.com/portal/*",
+    "https://virtocommerce.com/capabilities/*",
+    "https://virtocommerce.com/integration/*",
   ],
   exclude: [
     "https://virtocommerce.com/blog/*",
